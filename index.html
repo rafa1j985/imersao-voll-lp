@@ -762,23 +762,23 @@ const CONTEUDO_ORIGINAL = {
     "dores_opcoes": [
       {
         "v": "captar",
-        "titulo": "Faltam alunos",
-        "texto": "Tenho horário vago e não sei de onde tirar aluno novo."
+        "titulo": "Preciso de mais alunos",
+        "texto": "Não tenho muita clareza como conquistar mais clientes"
       },
       {
         "v": "retencao",
         "titulo": "Aluno que entra e sai",
-        "texto": "Tenho alunos, até sei vender, mas não consigo segurar."
+        "texto": "Tenho alunos, até sei vender, mas não consigo segurar. Sempre tá saindo cliente."
       },
       {
         "v": "sobrecarga",
         "titulo": "Tudo depende de mim",
-        "texto": "Se eu parar, o Studio para. Dou aula demais e não tiro férias."
+        "texto": "Se eu parar, o Studio para. Até pra tirar férias longas é dificil."
       },
       {
         "v": "organizacao",
         "titulo": "Organização e gestão",
-        "texto": "Tudo na cabeça, nada no papel. Não sei meus números."
+        "texto": "Tudo na cabeça, pouco no papel. Não sei meus números com precisão."
       },
       {
         "v": "equipe",
@@ -797,13 +797,13 @@ const CONTEUDO_ORIGINAL = {
       },
       {
         "v": "vendas",
-        "titulo": "Atendimento e venda",
-        "texto": "Chamam no WhatsApp, perguntam o preço e somem."
+        "titulo": "Pergunta preço e some",
+        "texto": "Me chamam no WhatsApp, perguntam o preço e somem."
       },
       {
         "v": "instagram",
         "titulo": "Instagram e marketing",
-        "texto": "Posto sem estratégia e não sei fazer anúncio."
+        "texto": "Posto, mas sem estratégia e não sei fazer anúncio que converte em cliente."
       }
     ],
     "perguntas": [
@@ -3482,6 +3482,7 @@ function syncPhotosFromOriginal(){
     }
   }
   if(O.escolha) C.escolha = clone(O.escolha);
+  if(O.quiz && O.quiz.dores_opcoes && C.quiz) C.quiz.dores_opcoes = clone(O.quiz.dores_opcoes);
   // foto da Lívia no laptop removida do site
   const ban=["img/exec1.jpg"];
   (function scrub(x){

@@ -2581,6 +2581,16 @@ async function showAgenda(){
         <a class="btn btn-gold" href="https://wa.me/${esc(CONFIG.SDR_WHATSAPP)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`;
       return;
     }
+    // Embaralha consultores a cada visita (mantém ordem por horário)
+    const ids=[...new Set(slots.map(s=>s.consultant_id))];
+    for(let i=ids.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=ids[i]; ids[i]=ids[j]; ids[j]=t; }
+    const rank=Object.fromEntries(ids.map((id,i)=>[id,i]));
+    slots.sort((a,b)=>{
+      const ta=new Date(a.starts_at)-new Date(b.starts_at);
+      if(ta!==0) return ta;
+      if(a.available!==b.available) return a.available?-1:1;
+      return (rank[a.consultant_id]||0)-(rank[b.consultant_id]||0);
+    });
     const byDay={};
     slots.forEach(s=>{
       const key=new Date(s.starts_at).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo", weekday:"long", day:"2-digit", month:"long"});

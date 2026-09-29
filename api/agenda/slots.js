@@ -69,6 +69,22 @@ module.exports = async function handler(req, res) {
         };
       });
 
+      // Público: embaralha ordem dos consultores a cada request (mesmo horário não favorece sempre o mesmo)
+      if (!req.query.consultant_id) {
+        const ids = [...new Set(out.map((s) => s.consultant_id))];
+        for (let i = ids.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp;
+        }
+        const rank = Object.fromEntries(ids.map((id, i) => [id, i]));
+        out.sort((a, b) => {
+          const ta = new Date(a.starts_at) - new Date(b.starts_at);
+          if (ta !== 0) return ta;
+          if (a.available !== b.available) return a.available ? -1 : 1;
+          return (rank[a.consultant_id] || 0) - (rank[b.consultant_id] || 0);
+        });
+      }
+
       return res.status(200).json({ ok: true, slots: out });
     }
 

@@ -127,6 +127,21 @@ module.exports = async function handler(req, res) {
     });
     const saved = rows && rows[0];
 
+    let consultant = null;
+    try {
+      const cons = await sbFetch(
+        "/rest/v1/consultants?id=eq." + encodeURIComponent(slot.consultant_id) +
+        "&select=id,name,whatsapp,photo_url&limit=1"
+      );
+      consultant = (cons && cons[0]) || null;
+    } catch (_) {
+      const cons = await sbFetch(
+        "/rest/v1/consultants?id=eq." + encodeURIComponent(slot.consultant_id) +
+        "&select=id,name&limit=1"
+      );
+      consultant = (cons && cons[0]) || null;
+    }
+
     let crmOk = false;
     let crmError = null;
     if (!isFake) {
@@ -137,7 +152,7 @@ module.exports = async function handler(req, res) {
           whatsapp,
           cidade,
           starts_at: slot.starts_at,
-          starts_label: startsLabel
+          starts_label: startsLabel + (consultant && consultant.name ? " · " + consultant.name : "")
         });
         crmOk = true;
       } catch (e) {
@@ -162,6 +177,14 @@ module.exports = async function handler(req, res) {
         display_name: displayName,
         is_fake: isFake
       },
+      consultant: consultant
+        ? {
+            id: consultant.id,
+            name: consultant.name,
+            whatsapp: consultant.whatsapp || "",
+            photo_url: consultant.photo_url || ""
+          }
+        : null,
       crmOk,
       crmError
     });

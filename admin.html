@@ -46,7 +46,11 @@ button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}
 .topbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
 .file{font-size:13px}
-.hint{background:#FFF8EE;border:1px solid #F0E0C4;border-radius:10px;padding:10px 12px;font-size:13px;color:#6B542E;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#888}
+a.wa{color:var(--pine);font-weight:700;text-decoration:none}
+.booking-empty{color:#888;font-size:13.5px;margin:8px 0 0}
 </style>
 </head>
 <body>
@@ -87,6 +91,12 @@ button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
         </div>
       </div>
       <div class="msg" id="profileMsg"></div>
+    </div>
+
+    <div class="card" id="bookingsCard">
+      <h2>Meus agendamentos</h2>
+      <p class="muted">Clientes que marcaram com você. Nome, WhatsApp e cidade (não pedimos e-mail no quiz).</p>
+      <div id="bookingsList"><p class="muted">Carregando…</p></div>
     </div>
 
     <div class="card hidden" id="adminPick">
@@ -208,11 +218,40 @@ async function refreshAll(){
       sel.innerHTML=state.consultants.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
       if(!state.viewingId && state.consultants[0]) state.viewingId=state.consultants[0].id;
       if(state.viewingId) sel.value=state.viewingId;
-      sel.onchange=()=>{ state.viewingId=sel.value; fillProfile(); loadDaySlots(); };
+      sel.onchange=()=>{ state.viewingId=sel.value; fillProfile(); loadDaySlots(); loadBookings(); };
     }
     fillProfile();
     await loadDaySlots();
+    await loadBookings();
   }catch(e){ msg($("#gridMsg"), e.message, false); }
+}
+
+async function loadBookings(){
+  const box=$("#bookingsList");
+  if(!box) return;
+  try{
+    const id=myConsultantId();
+    const from=new Date(Date.now()-2*864e5).toISOString();
+    const to=new Date(Date.now()+30*864e5).toISOString();
+    let url=`/api/agenda/bookings?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    if(isAdmin() && id) url+=`&consultant_id=${encodeURIComponent(id)}`;
+    const j=await api(url);
+    const list=(j.bookings||[]).filter(b=>!b.is_fake);
+    if(!list.length){
+      box.innerHTML=`<p class="booking-empty">Nenhum agendamento ainda.</p>`;
+      return;
+    }
+    box.innerHTML=`<table><thead><tr><th>Quando</th><th>Cliente</th><th>WhatsApp</th><th>Cidade</th></tr></thead><tbody>${
+      list.map(b=>{
+        const when=new Date(b.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"});
+        const wa=String(b.whatsapp||"").replace(/\\D/g,"");
+        const waLink=wa?`<a class="wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">${wa}</a>`:"—";
+        return `<tr><td>${when}</td><td><strong>${b.nome||"—"}</strong>${isAdmin()?`<div class="muted">${b.consultant_name||""}</div>`:""}</td><td>${waLink}</td><td>${b.cidade||"—"}</td></tr>`;
+      }).join("")
+    }</tbody></table>`;
+  }catch(e){
+    box.innerHTML=`<p class="msg err">${e.message}</p>`;
+  }
 }
 
 function currentConsultant(){

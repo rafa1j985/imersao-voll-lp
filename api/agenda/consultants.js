@@ -20,12 +20,12 @@ module.exports = async function handler(req, res) {
       }
       const q = isAdmin
         ? "/rest/v1/consultants?select=*&order=name"
-        : "/rest/v1/consultants?active=eq.true&select=id,name,note,photo_url&order=name";
+        : "/rest/v1/consultants?active=eq.true&select=id,name,note,photo_url,whatsapp&order=name";
       let rows;
       try {
         rows = await sbFetch(q);
       } catch (e) {
-        // fallback se photo_url ainda não existe
+        // fallback se photo_url/whatsapp ainda não existem
         const q2 = isAdmin
           ? "/rest/v1/consultants?select=id,name,active,note,created_at&order=name"
           : "/rest/v1/consultants?active=eq.true&select=id,name,note&order=name";

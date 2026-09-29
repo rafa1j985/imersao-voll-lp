@@ -362,6 +362,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
 .ag-slot .t{font-weight:700}
 .ag-slot .meta{font-size:13px;color:var(--pine-text)}
 .ag-slot.taken{background:rgba(255,255,255,.03)}
+.ag-confirm{position:fixed;inset:0;z-index:80;background:rgba(15,19,23,.72);display:grid;place-items:center;padding:20px}
+.ag-confirm .box{width:min(420px,100%);background:#fff;color:var(--ink);border-radius:14px;padding:22px;display:grid;gap:12px}
+.ag-confirm h3{margin:0;font-family:var(--serif);font-size:24px;font-weight:500}
+.ag-confirm p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+.ag-confirm .acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.ag-confirm .acts .btn{flex:1;min-width:120px}
+.ag-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:8px}
+
 .ag-slot .who{display:flex;align-items:center;gap:10px}
 .ag-slot .av{width:32px;height:32px;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.1);flex:none}
 
@@ -2612,33 +2620,65 @@ async function showAgenda(){
       html+=`</div>`;
     });
     $("#agBoard").innerHTML=html;
+    function showBookingSuccess(out){
+      const when=new Date(out.booking.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+      const cons=out.consultant||{};
+      const cName=cons.name||"Time VOLL";
+      const waDigits=String(cons.whatsapp||"").replace(/\D/g,"");
+      const leadName=S.lead.nome||"cliente";
+      const msg=`Oi ${cName}, sou ${leadName}. Agendei a conversa da Imersão Presencial VOLL em ${when}.`;
+      const waHref=waDigits?`https://wa.me/${waDigits}?text=${encodeURIComponent(msg)}`:`https://wa.me/${CONFIG.SDR_WHATSAPP}`;
+      root.innerHTML=`<div class="brand">VOLL <span>IMERSÃO PRESENCIAL</span></div>
+        <div class="q-step">Agendado</div>
+        <h1 class="serif">Horário confirmado</h1>
+        <p class="q-help">${esc(leadName)}, sua conversa de 20 minutos ficou em <strong>${esc(when)}</strong> com <strong>${esc(cName)}</strong>.</p>
+        <p class="q-help">Chame agora no WhatsApp para confirmar o link da reunião.</p>
+        <a class="btn btn-gold ag-wa" href="${esc(waHref)}" target="_blank" rel="noopener" id="agWa">Falar com ${esc(cName)} no WhatsApp</a>
+        <button type="button" class="q-back" id="agDone" style="margin-top:20px;display:block">Voltar para a página</button>`;
+      $("#agDone").onclick=()=>showLP();
+      track("agenda_booked",{slot_id:out.booking.id, starts_at:out.booking.starts_at, consultant:cName});
+    }
+    async function doBook(slot, btn){
+      if(btn) btn.disabled=true;
+      try{
+        const payload={
+          slot_id:slot.id,
+          nome:S.lead.nome||"",
+          whatsapp:S.lead.whatsapp||"",
+          cidade:S.lead.cidade||"",
+          quiz_payload:{dores:S.dores,ordem:S.ordem,a:S.a,rota:S.route}
+        };
+        const r=await fetch("/api/agenda/book",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+        const out=await r.json();
+        if(!r.ok||!out.ok) throw new Error(out.error||"Não foi possível agendar");
+        const overlay=$("#agConfirm"); if(overlay) overlay.remove();
+        showBookingSuccess(out);
+      }catch(e){
+        alert(String(e.message||e));
+        if(btn) btn.disabled=false;
+        const overlay=$("#agConfirm"); if(overlay) overlay.remove();
+      }
+    }
     root.querySelectorAll("[data-slot]").forEach(btn=>{
-      btn.onclick=async()=>{
-        const slot_id=btn.dataset.slot;
-        btn.disabled=true;
-        try{
-          const payload={
-            slot_id,
-            nome:S.lead.nome||"",
-            whatsapp:S.lead.whatsapp||"",
-            cidade:S.lead.cidade||"",
-            quiz_payload:{dores:S.dores,ordem:S.ordem,a:S.a,rota:S.route}
-          };
-          const r=await fetch("/api/agenda/book",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-          const out=await r.json();
-          if(!r.ok||!out.ok) throw new Error(out.error||"Não foi possível agendar");
-          const when=new Date(out.booking.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
-          root.innerHTML=`<div class="brand">VOLL <span>IMERSÃO PRESENCIAL</span></div>
-            <div class="q-step">Agendado</div>
-            <h1 class="serif">Horário confirmado</h1>
-            <p class="q-help">${esc(S.lead.nome||"Você")}, sua conversa de 20 minutos ficou em <strong>${esc(when)}</strong>. O time VOLL fala com você no WhatsApp com os detalhes.</p>
-            <button type="button" class="btn btn-gold" id="agDone">Voltar para a página</button>`;
-          $("#agDone").onclick=()=>showLP();
-          track("agenda_booked",{slot_id, starts_at:out.booking.starts_at});
-        }catch(e){
-          alert(String(e.message||e));
-          btn.disabled=false;
-        }
+      btn.onclick=()=>{
+        const slot=slots.find(s=>s.id===btn.dataset.slot);
+        if(!slot) return;
+        const when=new Date(slot.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+        const existing=$("#agConfirm"); if(existing) existing.remove();
+        const overlay=document.createElement("div");
+        overlay.className="ag-confirm"; overlay.id="agConfirm";
+        overlay.innerHTML=`<div class="box">
+          <h3>Confirmar horário?</h3>
+          <p>Conversa de 20 minutos com <strong>${esc(slot.consultant_name)}</strong> em <strong>${esc(when)}</strong>.</p>
+          <div class="acts">
+            <button type="button" class="btn btn-outline" id="agCancel">Cancelar</button>
+            <button type="button" class="btn btn-gold" id="agOk">Confirmar</button>
+          </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        $("#agCancel").onclick=()=>overlay.remove();
+        overlay.addEventListener("click",e=>{ if(e.target===overlay) overlay.remove(); });
+        $("#agOk").onclick=()=>doBook(slot, btn);
       };
     });
   }catch(e){

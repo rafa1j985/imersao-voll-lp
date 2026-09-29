@@ -34,9 +34,13 @@ module.exports = async function handler(req, res) {
       );
       let consultants;
       try {
-        consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name,photo_url");
+        consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name,photo_url,whatsapp");
       } catch (_) {
-        consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name");
+        try {
+          consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name,photo_url");
+        } catch (__) {
+          consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name");
+        }
       }
       const base = require("../_lib").supabaseUrl();
       const byId = Object.fromEntries((consultants || []).map((c) => [c.id, {
@@ -61,6 +65,7 @@ module.exports = async function handler(req, res) {
           consultant_id: s.consultant_id,
           consultant_name: c.name || "Consultor",
           consultant_photo: c.photo_url || "",
+          consultant_whatsapp: c.whatsapp || "",
           starts_at: s.starts_at,
           ends_at: s.ends_at,
           available: !taken,

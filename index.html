@@ -199,8 +199,17 @@ section{padding-block:100px}
 .resolve h3 em.g{color:var(--gold)}
 .resolve .lead{font-size:18px;color:var(--ink-2);margin-bottom:24px}
 .checks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.checks li{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border-radius:10px;padding:14px 16px;font-weight:600;border:1px solid rgba(0,0,0,.04)}
-.checks li::before{content:"";flex:none;width:22px;height:22px;border-radius:5px;background:var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3'%3E%3Cpath d='M5 12l5 5L19 7'/%3E%3C/svg%3E") center/11px no-repeat}
+.checks li{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border-radius:10px;padding:14px 16px;font-weight:600;border:1px solid rgba(0,0,0,.04);opacity:0;transform:translateY(16px)}
+.checks li::before{content:"";flex:none;width:22px;height:22px;border-radius:5px;background:var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3'%3E%3Cpath d='M5 12l5 5L19 7'/%3E%3C/svg%3E") center/11px no-repeat;transform:scale(.6);opacity:.35}
+.checks.is-in li{animation:checkRise .55s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * .1s)}
+.checks.is-in li::before{animation:checkPop .45s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * .1s + .12s)}
+@keyframes checkRise{to{opacity:1;transform:none}}
+@keyframes checkPop{to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .checks li{opacity:1;transform:none}
+  .checks li::before{transform:none;opacity:1}
+  .checks.is-in li,.checks.is-in li::before{animation:none}
+}
 .proof{margin-top:20px;padding-left:16px;border-left:2px solid var(--gold);color:var(--ink-2);font-size:15.5px}
 .resolve-more{background:var(--ink);color:#fff;margin-top:16px;padding:80px 0 88px}
 .resolve-more .resolve-sub{font-family:var(--serif);font-size:clamp(30px,4.8vw,52px);line-height:1.08;margin:0 auto 36px;color:#fff;text-align:center;max-width:16ch;font-weight:500}
@@ -2166,6 +2175,28 @@ function execIcon(rotulo){
 }
 
 /* ---------- LP ---------- */
+
+let _checksObs;
+function wireChecksReveal(){
+  const lists = $$("#resolveExpanded .checks");
+  if(!lists.length) return;
+  if(_checksObs){ try{ _checksObs.disconnect(); }catch(e){} _checksObs=null; }
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reduce || !("IntersectionObserver" in window)){
+    lists.forEach(ul=>ul.classList.add("is-in"));
+    return;
+  }
+  lists.forEach(ul=>ul.classList.remove("is-in"));
+  _checksObs=new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      en.target.classList.add("is-in");
+      _checksObs.unobserve(en.target);
+    });
+  },{threshold:0.35, rootMargin:"0px 0px -8% 0px"});
+  lists.forEach(ul=>_checksObs.observe(ul));
+}
+
 function renderResolve(){
   const R=C.secoes.resolve, p=prioridades();
   const fixasRaw = R.fotos_fixas || [{arquivo:"",legenda:""},{arquivo:"",legenda:""},{arquivo:"/img/exec3.jpg",legenda:""}];
@@ -2188,12 +2219,13 @@ function renderResolve(){
         <span class="resolve-n" aria-hidden="true">0${i+1}</span>
         <h3>${md(D.bloco.titulo)}</h3>
         <p class="lead">${md(D.bloco.texto)}</p>
-        <ul class="checks">${D.bloco.itens.map(x=>`<li>${md(x)}</li>`).join("")}</ul>
+        <ul class="checks">${D.bloco.itens.map((x,j)=>`<li style="--i:${j}">${md(x)}</li>`).join("")}</ul>
         <p class="proof">${md(D.bloco.prova)}</p>
       </div>
     </div>`;
   }).join(""));
   wirePhotoLabels(document.getElementById("resolveExpanded"));
+  wireChecksReveal();
   const rest=["captar","retencao","sobrecarga","organizacao","equipe","lucro","aplicativo","vendas","instagram"].filter(c=>!p.includes(c));
   set("resolveCompact", rest.map((code,i)=>{
     const D=C.dores[code]; if(!D) return "";

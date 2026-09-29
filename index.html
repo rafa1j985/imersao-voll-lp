@@ -710,24 +710,7 @@ const CONFIG = {
   SDR_WHATSAPP: "5519991225694",
   LISTA_VIP_URL: "https://vollpilates.com.br/lista-vip-imersao/",
   WEBHOOK_URL: "",
-  CRM: {
-    SUPABASE_URL: "https://wfrzsnwisypmgsbeccfj.supabase.co",
-    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmcnpzbndpc3lwbWdzYmVjY2ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyMTg5MzMsImV4cCI6MjA4MDc5NDkzM30.8el-0CN3LCFn7Wv7znpq_Aj6-tBJPju7zOtbdqCHbFo",
-    FORM_ID: "1d9607f3-27e0-4ad4-a8f1-9756f47b82db",
-    PIPELINE: "Imersão Presencial",
-    STAGE: "new",
-    FORM_INTERNAL_NAME: "Formulário Inicial Imersão 2027",
-    QUESTIONS: {
-      dores: { id: "aab74dc3-f6b5-4e56-9a94-b70bf9a8c24a", title: "O que te incomoda hoje no seu Studio?" },
-      ordem: { id: "87f45a8b-c3b3-4857-b862-7ded0b5d546f", title: "Se você pudesse resolver só 3, quais seriam?" },
-      alunos: { id: "7ab236cb-d6d9-40e2-a634-93e65f60f9d0", title: "Quantos alunos ativos você tem hoje?" },
-      numeros: { id: "ddf8ad10-abdb-4ef1-a682-880992bcdb6a", title: "Você toparia abrir os números do seu Studio pra gente?" },
-      momento: { id: "baa13de7-55f2-4308-b092-a4d0ee68a8e2", title: "Se fizer sentido, quando você quer resolver isso?" },
-      nome: { id: "c43fde98-7f76-4079-901a-3d3360e39f01", title: "Seu nome", crmMapping: "company_name" },
-      whatsapp: { id: "9bc90794-3102-4fd4-aa55-821cab964194", title: "WhatsApp com DDD", crmMapping: "phone" },
-      cidade: { id: "e2d9e620-8714-4fbd-988e-0c3ac6b4ce9c", title: "Cidade do seu Studio" }
-    }
-  }
+  LEAD_API_URL: "/api/lead"
 };
 
 const DEFAULT_ORDEM = ["captar","sobrecarga","lucro"];
@@ -2197,25 +2180,6 @@ function quizOptionTitle(group, code){
   const o=(P.opcoes||[]).find(x=>x.v===code);
   return o ? (o.titulo||code) : String(code);
 }
-function crmAnswer(key, value){
-  const q=CONFIG.CRM.QUESTIONS[key];
-  if(!q) return null;
-  return { questionId:q.id, questionTitle:q.title, value:String(value==null?"":value) };
-}
-function buildCrmFormAnswers(){
-  const doresLabels=(S.dores||[]).map(c=>quizOptionTitle("dores",c)).filter(Boolean);
-  const ordemLabels=(S.ordem&&S.ordem.length?S.ordem:S.dores.slice(0,3)).map(c=>quizOptionTitle("dores",c)).filter(Boolean);
-  return [
-    crmAnswer("dores", doresLabels.join("; ")),
-    crmAnswer("ordem", ordemLabels.join("; ")),
-    crmAnswer("alunos", quizOptionTitle("alunos", S.a.alunos)),
-    crmAnswer("numeros", quizOptionTitle("numeros", S.a.numeros)),
-    crmAnswer("momento", quizOptionTitle("momento", S.a.momento)),
-    crmAnswer("nome", S.lead.nome||""),
-    crmAnswer("whatsapp", crmPhone(S.lead.whatsapp||"")),
-    crmAnswer("cidade", S.lead.cidade||"")
-  ].filter(Boolean);
-}
 function crmPhone(raw){
   const d=String(raw||"").replace(/\D/g,"");
   if(!d) return "";
@@ -2223,112 +2187,43 @@ function crmPhone(raw){
   if(d.length===10 || d.length===11) return "55"+d;
   return d;
 }
-function crmDealNumber(){
-  const s=new Date();
-  const y=s.getFullYear();
-  const m=String(s.getMonth()+1).padStart(2,"0");
-  const d=String(s.getDate()).padStart(2,"0");
-  const h=String(s.getHours()).padStart(2,"0");
-  const min=String(s.getMinutes()).padStart(2,"0");
-  const r=Math.floor(1000+Math.random()*9000);
-  return Number();
-}
-async function crmFetch(path, opts){
-  const base=CONFIG.CRM.SUPABASE_URL.replace(/\/$/,"");
-  const headers=Object.assign({
-    "apikey": CONFIG.CRM.SUPABASE_ANON_KEY,
-    "Authorization": "Bearer "+CONFIG.CRM.SUPABASE_ANON_KEY,
-    "Content-Type": "application/json"
-  }, (opts&&opts.headers)||{});
-  const res=await fetch(base+path, Object.assign({}, opts, { headers }));
-  const text=await res.text();
-  let data=null;
-  try{ data=text ? JSON.parse(text) : null; }catch(e){ data=text; }
-  if(!res.ok){
-    const msg=(data&&data.message)||res.statusText||("HTTP "+res.status);
-    throw new Error(msg);
-  }
-  return data;
-}
-async function sendLeadToCrm(){
-  if(!CONFIG.CRM || !CONFIG.CRM.FORM_ID || !CONFIG.CRM.SUPABASE_ANON_KEY) return null;
-  const answers=buildCrmFormAnswers();
-  await crmFetch("/rest/v1/crm_form_submissions", {
-    method:"POST",
-    headers:{ "Prefer":"return=minimal" },
-    body: JSON.stringify([{ form_id: CONFIG.CRM.FORM_ID, answers }])
-  });
-  // Espelha o Form→CRM do portal (pode falhar por permissão anon — não bloqueia a LP)
-  try{
-    const formRows=await crmFetch("/rest/v1/crm_forms?id=eq."+encodeURIComponent(CONFIG.CRM.FORM_ID)+"&select=*",{method:"GET"});
-    const form=(formRows&&formRows[0])||null;
-    if(!form || form.type==="sector_form") return { submitted:true, dealId:null };
-    let pipeline=form.target_pipeline||CONFIG.CRM.PIPELINE||"Padrão";
-    let stage=form.target_stage||CONFIG.CRM.STAGE||"new";
-    const pipes=await crmFetch("/rest/v1/crm_pipelines?select=name,stages&order=name",{method:"GET"}).catch(()=>[]);
-    const pipeList=pipes||[];
-    if(!pipeList.find(p=>p.name===pipeline) && pipeList.length) pipeline=pipeList[0].name;
-    const stages=((pipeList.find(p=>p.name===pipeline)||{}).stages)||[];
-    if(!stages.map(s=>s.id).includes(stage) && stages.length) stage=stages[0].id;
-    const style=form.style&&typeof form.style==="object"?form.style:{};
-    const internalName=String(style.internalName||form.title||CONFIG.CRM.FORM_INTERNAL_NAME||"").trim();
-    const deal={
-      id:(crypto.randomUUID?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(16).slice(2))),
-      deal_number:crmDealNumber(),
-      pipeline, stage, status:"hot",
-      created_at:new Date().toISOString(),
-      source:"Formulário Online",
-      campaign:form.campaign||"",
-      form_internal_name:internalName
-    };
-    const Q=form.questions||[];
-    answers.forEach(a=>{
-      const B=Q.find(z=>z.id===a.questionId);
-      if(!B||!B.crmMapping) return;
-      const v=a.value!=null?String(a.value).trim():"";
-      if(!v) return;
-      deal[B.crmMapping]=v;
-    });
-    if(deal.phone) deal.phone=crmPhone(deal.phone);
-    if(!deal.company_name) deal.company_name=deal.contact_name||S.lead.nome||"";
-    deal.title=deal.company_name||("Lead via "+(form.title||"formulário"));
-    let owner=form.fixed_owner_id||null;
-    if(!owner && form.distribution_mode==="round-robin" && form.team_id){
-      try{
-        const teams=await crmFetch("/rest/v1/crm_teams?id=eq."+encodeURIComponent(form.team_id)+"&select=members",{method:"GET"});
-        const members=(teams&&teams[0]&&teams[0].members)||[];
-        if(members.length){
-          const next=((form.last_assigned_index||0)+1)%members.length;
-          owner=members[next];
-          await crmFetch("/rest/v1/crm_forms?id=eq."+encodeURIComponent(form.id),{
-            method:"PATCH",
-            headers:{ "Prefer":"return=minimal" },
-            body: JSON.stringify({ last_assigned_index: next })
-          }).catch(()=>{});
-        }
-      }catch(e){}
-    }
-    if(owner) deal.owner_id=owner;
-    await crmFetch("/rest/v1/crm_deals",{
-      method:"POST",
-      headers:{ "Prefer":"return=minimal" },
-      body: JSON.stringify([deal])
-    });
-    return { submitted:true, dealId:deal.id };
-  }catch(e){
-    console.warn("[CRM] Submissão do formulário ok; deal não criado:", e&&e.message||e);
-    return { submitted:true, dealId:null, dealError:String(e&&e.message||e) };
-  }
+function buildLeadPayload(){
+  const p=prioridades();
+  const doresLabels=(S.dores||[]).map(c=>quizOptionTitle("dores",c)).filter(Boolean);
+  const ordemSrc=(S.ordem&&S.ordem.length?S.ordem:S.dores.slice(0,3));
+  const ordemLabels=ordemSrc.map(c=>quizOptionTitle("dores",c)).filter(Boolean);
+  return {
+    nome: S.lead.nome||"",
+    whatsapp: crmPhone(S.lead.whatsapp||""),
+    cidade: S.lead.cidade||"",
+    dores: S.dores||[],
+    ordem: ordemSrc||[],
+    dores_labels: doresLabels.join("; "),
+    ordem_labels: ordemLabels.join("; "),
+    alunos: S.a.alunos||"",
+    alunos_label: quizOptionTitle("alunos", S.a.alunos),
+    numeros: S.a.numeros||"",
+    numeros_label: quizOptionTitle("numeros", S.a.numeros),
+    momento: S.a.momento||"",
+    momento_label: quizOptionTitle("momento", S.a.momento),
+    dor_principal: p[0]||"",
+    prioridades: p,
+    total_dores: (S.dores||[]).length,
+    rota: S.route,
+    origem: location.href
+  };
 }
 function sendLead(){
-  const p=prioridades();
-  const payload={...S.lead,dor_principal:p[0],prioridades:p,dores:S.dores,total_dores:S.dores.length,
-    alunos:S.a.alunos,numeros:S.a.numeros,momento:S.a.momento,rota:S.route,origem:location.href};
-  try{ sendLeadToCrm().catch(err=>console.warn("[CRM] Falha ao enviar lead:", err&&err.message||err)); }catch(e){}
+  const payload=buildLeadPayload();
+  const url=CONFIG.LEAD_API_URL||"/api/lead";
+  try{
+    fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(err=>console.warn("[lead] Falha ao enviar:", err&&err.message||err));
+  }catch(e){}
   if(CONFIG.WEBHOOK_URL){
     try{ fetch(CONFIG.WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{}); }catch(e){}
   }
 }
+
 
 
 

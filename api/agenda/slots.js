@@ -4,7 +4,7 @@
  *   { consultant_id?, slots: [{ starts_at, ends_at }] }
  * DELETE /api/agenda/slots — cancela slot aberto { id }
  */
-const { cors, readBody, sbFetch, requireUser } = require("../../_lib");
+const { cors, readBody, sbFetch, requireUser } = require("../_lib");
 
 function iso(d) {
   return new Date(d).toISOString();

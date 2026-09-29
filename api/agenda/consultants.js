@@ -3,7 +3,7 @@
  * POST /api/agenda/consultants — admin cria consultor { name, note? }
  * PATCH /api/agenda/consultants — admin atualiza { id, name?, active?, note? }
  */
-const { cors, readBody, sbFetch, requireUser, bearer } = require("../../_lib");
+const { cors, readBody, sbFetch, requireUser, bearer } = require("../_lib");
 
 module.exports = async function handler(req, res) {
   cors(res, "GET, POST, PATCH, OPTIONS");

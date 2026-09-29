@@ -5,7 +5,7 @@
  * Cliente: { slot_id, nome, whatsapp, cidade?, quiz_payload? }
  * Admin fake: { slot_id, is_fake: true, display_name }
  */
-const { cors, readBody, sbFetch, requireUser, bearer } = require("../../_lib");
+const { cors, readBody, sbFetch, requireUser, bearer } = require("../_lib");
 
 function crmPhone(raw) {
   const d = String(raw || "").replace(/\D/g, "");

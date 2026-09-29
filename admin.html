@@ -123,7 +123,8 @@ button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
 <script>
 const KEY="imersao_admin_session";
 const HOURS = [];
-for(let h=8;h<=19;h++){ HOURS.push(h+":00"); HOURS.push(h+":30"); }
+for(let h=8;h<=20;h++){ HOURS.push(h+":00"); HOURS.push(h+":30"); }
+HOURS.push("21:00");
 const $ = (s)=>document.querySelector(s);
 const state = { day: null, slots: [], consultants: [], viewingId: null };
 

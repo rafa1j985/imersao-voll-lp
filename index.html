@@ -684,7 +684,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
 <div id="agenda" hidden><div id="agendaInner"></div></div>
 <div id="turma1" hidden><div id="turma1Inner"></div></div>
 
-<button class="ed-btn" id="edOpen" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Editar textos</button>
+<button class="ed-btn" id="edOpen" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Editar textos</button>
 <aside class="ed" id="ed" hidden aria-label="Editor de textos">
   <header>
     <div class="ed-top"><strong>Editor de textos da página</strong><button class="x" id="edClose" type="button" aria-label="Fechar">×</button></div>
@@ -3422,8 +3422,22 @@ function applyPreview(){
   S.ordem=ordem; S.dores=[...new Set([...ordem,...S.dores])];
   store.set("imersao_estado",S); renderLP();
 }
-$("#edOpen").onclick=()=>{ ensurePreviewProfile(); if($("#lp").hidden) showLP(); syncPreview(); renderEditor(); $("#ed").hidden=false; $("#edOpen").hidden=true; };
-$("#edClose").onclick=()=>{ $("#ed").hidden=true; $("#edOpen").hidden=false; };
+function isAdminMode(){ return location.hash==="#admin"; }
+function syncAdminMode(){
+  const on=isAdminMode();
+  const ed=$("#ed"), btn=$("#edOpen");
+  if(!on){
+    if(ed) ed.hidden=true;
+    if(btn) btn.hidden=true;
+    return;
+  }
+  if(btn && (!ed || ed.hidden)) btn.hidden=false;
+}
+$("#edOpen").onclick=()=>{
+  if(!isAdminMode()) return;
+  ensurePreviewProfile(); if($("#lp").hidden) showLP(); syncPreview(); renderEditor(); $("#ed").hidden=false; $("#edOpen").hidden=true;
+};
+$("#edClose").onclick=()=>{ $("#ed").hidden=true; $("#edOpen").hidden=!isAdminMode(); };
 $("#pvP1").onchange=applyPreview; $("#pvP2").onchange=applyPreview; $("#pvP3").onchange=applyPreview;
 $("#edCopy").onclick=()=>{
   const txt="const CONTEUDO = "+JSON.stringify(C,null,2)+";";
@@ -3431,7 +3445,8 @@ $("#edCopy").onclick=()=>{
   try{ navigator.clipboard.writeText(txt).then(()=>flash("Copiado")).catch(fallback); }catch(e){ fallback(); }
 };
 $("#edReset").onclick=()=>{ C=clone(CONTEUDO_ORIGINAL); store.set("imersao_conteudo",null); renderEditor(); renderLP(); flash("Restaurado"); };
-$("#edRestart").onclick=()=>{ S={step:-1,dores:[],ordem:[],a:{},lead:{nome:"",whatsapp:"",cidade:""},route:"quente",done:false}; store.set("imersao_estado",S); store.set("imersao_aplicacao",null); app={etapa:-1,q:0,answers:{},done:false}; $("#ed").hidden=true; $("#edOpen").hidden=false; hideAllViews(); $("#quiz").hidden=false; renderQuiz(); window.scrollTo(0,0); };
+$("#edRestart").onclick=()=>{ S={step:-1,dores:[],ordem:[],a:{},lead:{nome:"",whatsapp:"",cidade:""},route:"quente",done:false}; store.set("imersao_estado",S); store.set("imersao_aplicacao",null); app={etapa:-1,q:0,answers:{},done:false}; $("#ed").hidden=true; $("#edOpen").hidden=!isAdminMode(); hideAllViews(); $("#quiz").hidden=false; renderQuiz(); window.scrollTo(0,0); };
+window.addEventListener("hashchange", syncAdminMode);
 
 
 function syncPhotosFromOriginal(){
@@ -3483,6 +3498,7 @@ const savedC=store.get("imersao_conteudo"); if(savedC&&savedC.dores&&savedC.seco
 syncPhotosFromOriginal();
 store.set("imersao_conteudo",C);
 const savedS=store.get("imersao_estado"); if(savedS&&Array.isArray(savedS.dores)) S=savedS;
+syncAdminMode();
 if(S.done && (S.ordem.length||S.dores.length)) showLP(); else { if(S.step>10) S.step=-1; renderQuiz(); }
 </script>
 </body></html>

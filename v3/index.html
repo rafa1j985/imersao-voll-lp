@@ -1006,7 +1006,7 @@ const CONTEUDO_ORIGINAL = {
       "subtitulo": "E ainda, você vai resolver essas *6* questões:",
       "foto_topo": {
         "arquivo": "/img/resolve1.jpg",
-        "legenda": "Carol e Henrique mostrando a Jornada do Cliente"
+        "legenda": "Carol e Henrique Wolf mostrando a Jornada do Cliente"
       },
       "fotos_fixas": [
         {
@@ -1120,7 +1120,7 @@ const CONTEUDO_ORIGINAL = {
           "foto": "/img/socio-rafael.jpg"
         },
         {
-          "nome": "Henrique",
+          "nome": "Henrique Wolf",
           "papel": "Sócio-Fundador do Grupo VOLL",
           "texto": "Sócio fundador da VOLL e responsável por toda a parte organizacional. Tem a análise de todos os seus números com você e monta a operação para o Studio rodar sem depender de você.",
           "foto": "/img/socio-henrique.jpg"
@@ -1353,7 +1353,7 @@ const CONTEUDO_ORIGINAL = {
             },
             {
               "titulo": "Análise dos sócios",
-              "texto": "Rafael, Henrique e Carol leem cada aplicação e decidem a turma."
+              "texto": "Rafael, Henrique Wolf e Carol leem cada aplicação e decidem a turma."
             },
             {
               "titulo": "Confirmação da vaga",
@@ -1372,7 +1372,7 @@ const CONTEUDO_ORIGINAL = {
             },
             {
               "titulo": "Análise dos sócios",
-              "texto": "Rafael, Henrique e Carol leem a sua aplicação pessoalmente."
+              "texto": "Rafael, Henrique Wolf e Carol leem a sua aplicação pessoalmente."
             },
             {
               "titulo": "Confirmação pelo WhatsApp",
@@ -2201,7 +2201,7 @@ function renderResolve(){
   const R=C.secoes.resolve, p=prioridades();
   const fixasRaw = R.fotos_fixas || [{arquivo:"",legenda:""},{arquivo:"",legenda:""},{arquivo:"/img/exec3.jpg",legenda:""}];
   const fixas = fixasRaw.map(f=> typeof f==="string" ? {arquivo:f,legenda:""} : f);
-  const topo = fotoInfo(R.foto_topo || {arquivo:"/img/resolve1.jpg",legenda:"Carol e Henrique mostrando a Jornada do Cliente"});
+  const topo = fotoInfo(R.foto_topo || {arquivo:"/img/resolve1.jpg",legenda:"Carol e Henrique Wolf mostrando a Jornada do Cliente"});
   applyPhotoEl($("#resolveLead"), topo.arquivo, "resolveLead", topo.legenda);
   set("resolveHead",`<h2>${md(R.titulo)}</h2>${R.texto?`<p>${md(R.texto)}</p>`:""}`);
   set("resolveSub",md(R.subtitulo||""));

@@ -331,7 +331,8 @@ section{padding-block:100px}
 footer{background:var(--pine-2);color:#8A837A;font-size:13.5px;border-top:1px solid var(--line-pine)}
 footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:26px}
 
-.mbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(15,19,23,.97);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:none}
+.mbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(15,19,23,.97);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:none;transform:translateY(0);transition:transform .35s ease}
+.mbar.is-hidden,.mbar.is-wait{transform:translateY(110%);pointer-events:none}
 .mbar .btn{width:100%;padding:15px;border-radius:8px}
 
 .ed-btn{position:fixed;right:18px;bottom:18px;z-index:40;display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:700;font-size:14px}
@@ -2415,9 +2416,17 @@ function renderLP(){
   wirePhotoLabels(document.getElementById("lp"));
 }
 let _mbarObs;
+let _mbarUnlocked=false;
+let _mbarUnlockTimer=null;
+const MBAR_DELAY_MS=120000; /* 2 minutos */
+function refreshMbarVisibility(){
+  const mbar=$("[data-cta-mobile]"); if(!mbar) return;
+  mbar.classList.toggle("is-wait", !_mbarUnlocked);
+}
 function setupMbarHide(){
   const mbar=$("[data-cta-mobile]"); if(!mbar) return;
   if(_mbarObs){ _mbarObs.disconnect(); _mbarObs=null; }
+  refreshMbarVisibility();
   const targets=[document.querySelector(".hero"), document.querySelector(".final")].filter(Boolean);
   if(!targets.length || !("IntersectionObserver" in window)) return;
   const seen=new Map();
@@ -2428,9 +2437,22 @@ function setupMbarHide(){
   },{threshold:0.15});
   targets.forEach(t=>_mbarObs.observe(t));
 }
+function startMbarDelay(){
+  const mbar=$("[data-cta-mobile]");
+  if(_mbarUnlocked){ refreshMbarVisibility(); return; }
+  refreshMbarVisibility();
+  if(_mbarUnlockTimer) return; /* já contando */
+  _mbarUnlockTimer=setTimeout(()=>{
+    _mbarUnlocked=true;
+    _mbarUnlockTimer=null;
+    refreshMbarVisibility();
+    track("mbar_unlock",{delay_ms:MBAR_DELAY_MS});
+  }, MBAR_DELAY_MS);
+}
 function showLP(){
   showView("lp");
   renderLP();
+  startMbarDelay();
   if(typeof syncPreview==="function") syncPreview();
   track("lp_view",{rota:S.route});
 }

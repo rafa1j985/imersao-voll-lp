@@ -362,6 +362,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
 .ag-slot .t{font-weight:700}
 .ag-slot .meta{font-size:13px;color:var(--pine-text)}
 .ag-slot.taken{background:rgba(255,255,255,.03)}
+.ag-slot .who{display:flex;align-items:center;gap:10px}
+.ag-slot .av{width:32px;height:32px;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.1);flex:none}
 
 .ed-btn{position:fixed;right:18px;bottom:18px;z-index:40;display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:700;font-size:14px}
 .ed-btn svg{width:16px;height:16px}
@@ -2590,9 +2592,11 @@ async function showAgenda(){
       byDay[day].forEach(s=>{
         const t=new Date(s.starts_at).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
         if(s.available){
-          html+=`<button type="button" class="ag-slot" data-slot="${esc(s.id)}"><span><div class="t">${esc(t)}</div><div class="meta">${esc(s.consultant_name)}</div></span><span class="meta">Disponível</span></button>`;
+          const av=s.consultant_photo?`<img class="av" src="${esc(s.consultant_photo)}" alt="" onerror="this.style.display='none'">`:"";
+          html+=`<button type="button" class="ag-slot" data-slot="${esc(s.id)}"><span><div class="t">${esc(t)}</div><div class="who">${av}<div class="meta">${esc(s.consultant_name)}</div></div></span><span class="meta">Disponível</span></button>`;
         } else {
-          html+=`<button type="button" class="ag-slot taken" disabled><span><div class="t">${esc(t)}</div><div class="meta">${esc(s.consultant_name)}</div></span><span class="meta">${esc(s.display_name||"Reservado")}</span></button>`;
+          const av=s.consultant_photo?`<img class="av" src="${esc(s.consultant_photo)}" alt="" onerror="this.style.display='none'">`:"";
+          html+=`<button type="button" class="ag-slot taken" disabled><span><div class="t">${esc(t)}</div><div class="who">${av}<div class="meta">${esc(s.consultant_name)}</div></div></span><span class="meta">${esc(s.display_name||"Reservado")}</span></button>`;
         }
       });
       html+=`</div>`;

@@ -18,9 +18,13 @@ module.exports = async function handler(req, res) {
     if (req.method === "GET") {
       const from = req.query.from || new Date().toISOString();
       const to = req.query.to || new Date(Date.now() + 14 * 864e5).toISOString();
+      const consultantFilter = req.query.consultant_id
+        ? "&consultant_id=eq." + encodeURIComponent(req.query.consultant_id)
+        : "";
       const slots = await sbFetch(
         "/rest/v1/open_slots?starts_at=gte." + encodeURIComponent(from) +
         "&starts_at=lt." + encodeURIComponent(to) +
+        consultantFilter +
         "&status=neq.cancelled&select=id,consultant_id,starts_at,ends_at,status&order=starts_at"
       );
       const bookings = await sbFetch(
@@ -28,8 +32,17 @@ module.exports = async function handler(req, res) {
         "&starts_at=lt." + encodeURIComponent(to) +
         "&select=id,slot_id,consultant_id,starts_at,ends_at,is_fake,display_name,nome&order=starts_at"
       );
-      const consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name");
-      const byId = Object.fromEntries((consultants || []).map((c) => [c.id, c.name]));
+      let consultants;
+      try {
+        consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name,photo_url");
+      } catch (_) {
+        consultants = await sbFetch("/rest/v1/consultants?active=eq.true&select=id,name");
+      }
+      const base = require("../_lib").supabaseUrl();
+      const byId = Object.fromEntries((consultants || []).map((c) => [c.id, {
+        ...c,
+        photo_url: c.photo_url || (base + "/storage/v1/object/public/consultant-photos/" + c.id + "/avatar.jpg")
+      }]));
 
       const occupiedBySlot = {};
       (bookings || []).forEach((b) => {
@@ -42,10 +55,12 @@ module.exports = async function handler(req, res) {
         const display = b
           ? (b.display_name || (b.nome ? String(b.nome).split(" ")[0] : "Reservado"))
           : null;
+        const c = byId[s.consultant_id] || {};
         return {
           id: s.id,
           consultant_id: s.consultant_id,
-          consultant_name: byId[s.consultant_id] || "Consultor",
+          consultant_name: c.name || "Consultor",
+          consultant_photo: c.photo_url || "",
           starts_at: s.starts_at,
           ends_at: s.ends_at,
           available: !taken,

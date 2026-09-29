@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin · Imersão VOLL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+<style>
+:root{--ink:#0F1317;--pine:#1C3A3A;--gold:#B8956C;--bg:#F6F3EE;--line:rgba(0,0,0,.1);--ok:#15803D;--err:#B91C1C}
+*{box-sizing:border-box}
+body{margin:0;font-family:Outfit,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:24px 18px 80px}
+h1{font-size:28px;margin:0 0 8px}
+h2{font-size:18px;margin:28px 0 12px}
+.muted{color:#666;font-size:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label{display:grid;gap:4px;font-size:12px;font-weight:600;color:#666;flex:1;min-width:140px}
+input,select,button,textarea{font:inherit}
+input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
+button{border:0;border-radius:8px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--ink);color:#fff}
+button.gold{background:var(--gold);color:var(--ink)}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.danger{background:var(--err);color:#fff}
+.hidden{display:none!important}
+.msg{font-size:13px;margin-top:8px}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--err)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#eee}
+.tag.fake{background:#FEF3C7;color:#92400E}
+.tag.open{background:#DCFCE7;color:#166534}
+.tag.booked{background:#E5E7EB;color:#374151}
+.slot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.slot-chip{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;font-size:13px}
+.slot-chip.taken{opacity:.65;background:#f3f3f3}
+#loginBox{max-width:400px;margin:10vh auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="loginBox" class="card">
+    <h1>Admin VOLL</h1>
+    <p class="muted">Login para editar a LP e gerenciar a agenda dos consultores.</p>
+    <div class="row" style="flex-direction:column;align-items:stretch">
+      <label>E-mail<input id="email" type="email" autocomplete="username"></label>
+      <label>Senha<input id="password" type="password" autocomplete="current-password"></label>
+      <button class="gold" id="btnLogin" type="button">Entrar</button>
+      <div class="msg" id="loginMsg"></div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div>
+        <h1>Painel</h1>
+        <p class="muted" id="who"></p>
+      </div>
+      <div class="row">
+        <a href="/#admin" style="align-self:center;font-weight:600;color:var(--pine)">Abrir editor da LP →</a>
+        <button class="ghost" id="btnLogout" type="button">Sair</button>
+      </div>
+    </div>
+
+    <div id="adminOnly">
+      <h2>Consultores</h2>
+      <div class="card">
+        <div class="row">
+          <label>Nome<input id="cName" placeholder="Ex.: Ana"></label>
+          <label>Nota<input id="cNote" placeholder="Opcional"></label>
+          <button id="btnAddC" type="button">Adicionar</button>
+        </div>
+        <div id="cList" style="margin-top:14px"></div>
+      </div>
+
+      <h2>Fake / prova social</h2>
+      <div class="card">
+        <p class="muted">Marca um horário aberto como ocupado com um nome fictício. O cliente vê que “já tem gente”.</p>
+        <div class="row">
+          <label>Slot aberto<select id="fakeSlot"></select></label>
+          <label>Nome exibido<input id="fakeName" placeholder="Ex.: Juliana · Studio Lumen"></label>
+          <button id="btnFake" type="button">Marcar como ocupado</button>
+        </div>
+        <div class="msg" id="fakeMsg"></div>
+      </div>
+    </div>
+
+    <h2>Abrir horários</h2>
+    <div class="card">
+      <p class="muted">Reunião = 20 min. Você libera slots (ex.: de 30 em 30). Escolha dia e hora de início.</p>
+      <div class="row">
+        <label id="cSelectWrap" class="hidden">Consultor<select id="slotConsultant"></select></label>
+        <label>Data<input id="slotDate" type="date"></label>
+        <label>Hora início<input id="slotTime" type="time" value="09:00"></label>
+        <label>Duração (min)<input id="slotDur" type="number" min="15" step="5" value="30"></label>
+        <label>Quantidade<input id="slotQty" type="number" min="1" max="20" value="4"></label>
+        <button class="gold" id="btnSlots" type="button">Liberar</button>
+      </div>
+      <div class="msg" id="slotMsg"></div>
+    </div>
+
+    <h2>Próximos 14 dias</h2>
+    <div class="card" id="agendaView"><p class="muted">Carregando…</p></div>
+  </div>
+</div>
+<script>
+const KEY="imersao_admin_session";
+const $ = (s)=>document.querySelector(s);
+function session(){ try{return JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){return null;} }
+function setSession(v){ if(v) localStorage.setItem(KEY, JSON.stringify(v)); else localStorage.removeItem(KEY); }
+function authHeaders(){
+  const s=session();
+  return s&&s.access_token ? { Authorization:"Bearer "+s.access_token, "Content-Type":"application/json" } : { "Content-Type":"application/json" };
+}
+async function api(url, opts={}){
+  const res=await fetch(url,{...opts, headers:{...authHeaders(), ...(opts.headers||{})}});
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok || j.ok===false) throw new Error(j.error||res.statusText);
+  return j;
+}
+function msg(el, text, ok){ el.textContent=text||""; el.className="msg "+(ok?"ok":"err"); }
+
+function showApp(){
+  const s=session();
+  if(!s||!s.profile){ $("#loginBox").classList.remove("hidden"); $("#app").classList.add("hidden"); return; }
+  $("#loginBox").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  $("#who").textContent = s.user.email+" · "+s.profile.role+(s.profile.name?(" · "+s.profile.name):"");
+  const isAdmin=s.profile.role==="admin";
+  $("#adminOnly").classList.toggle("hidden", !isAdmin);
+  $("#cSelectWrap").classList.toggle("hidden", !isAdmin);
+  refreshAll();
+}
+
+$("#btnLogin").onclick=async()=>{
+  const email=$("#email").value.trim();
+  const password=$("#password").value;
+  try{
+    const j=await api("/api/admin/login",{method:"POST", body:JSON.stringify({email,password}), headers:{"Content-Type":"application/json"}});
+    setSession({access_token:j.access_token, refresh_token:j.refresh_token, user:j.user, profile:j.profile});
+    showApp();
+  }catch(e){ msg($("#loginMsg"), e.message, false); }
+};
+$("#btnLogout").onclick=()=>{ setSession(null); showApp(); };
+
+async function refreshConsultants(){
+  const j=await api("/api/agenda/consultants");
+  const list=j.consultants||[];
+  const sel=$("#slotConsultant");
+  sel.innerHTML=list.map(c=>`<option value="${c.id}">${c.name}${c.active?"":" (inativo)"}</option>`).join("");
+  $("#cList").innerHTML = list.length ? `<table><thead><tr><th>Nome</th><th>Status</th></tr></thead><tbody>${
+    list.map(c=>`<tr><td>${c.name}</td><td><span class="tag ${c.active?"open":"booked"}">${c.active?"ativo":"inativo"}</span></td></tr>`).join("")
+  }</tbody></table>` : "<p class='muted'>Nenhum consultor ainda.</p>";
+  return list;
+}
+
+async function refreshAgenda(){
+  const from=new Date().toISOString();
+  const to=new Date(Date.now()+14*864e5).toISOString();
+  const j=await api(`/api/agenda/slots?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  const slots=j.slots||[];
+  const open=slots.filter(s=>s.available);
+  $("#fakeSlot").innerHTML = open.map(s=>{
+    const d=new Date(s.starts_at);
+    const label=d.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo", weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"})+" · "+s.consultant_name;
+    return `<option value="${s.id}">${label}</option>`;
+  }).join("") || `<option value="">Nenhum slot aberto</option>`;
+
+  const byDay={};
+  slots.forEach(s=>{
+    const key=new Date(s.starts_at).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"});
+    (byDay[key]=byDay[key]||[]).push(s);
+  });
+  const days=Object.keys(byDay);
+  if(!days.length){ $("#agendaView").innerHTML="<p class='muted'>Nenhum horário nos próximos 14 dias.</p>"; return; }
+  $("#agendaView").innerHTML = days.map(day=>{
+    const items=byDay[day].map(s=>{
+      const t=new Date(s.starts_at).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
+      if(s.available) return `<div class="slot-chip"><strong>${t}</strong><br>${s.consultant_name}<br><span class="tag open">livre</span></div>`;
+      return `<div class="slot-chip taken"><strong>${t}</strong><br>${s.consultant_name}<br><span class="tag ${s.is_fake?"fake":"booked"}">${s.is_fake?"fake":"reservado"}</span><br>${s.display_name||""}</div>`;
+    }).join("");
+    return `<h3 style="margin:16px 0 8px;font-size:15px">${day}</h3><div class="slot-grid">${items}</div>`;
+  }).join("");
+}
+
+async function refreshAll(){
+  try{ await refreshConsultants(); await refreshAgenda(); }
+  catch(e){ $("#agendaView").innerHTML=`<p class="msg err">${e.message}</p>`; }
+}
+
+$("#btnAddC").onclick=async()=>{
+  try{
+    await api("/api/agenda/consultants",{method:"POST",body:JSON.stringify({name:$("#cName").value, note:$("#cNote").value})});
+    $("#cName").value=""; $("#cNote").value="";
+    await refreshAll();
+  }catch(e){ alert(e.message); }
+};
+
+$("#btnSlots").onclick=async()=>{
+  const s=session();
+  const date=$("#slotDate").value;
+  const time=$("#slotTime").value;
+  const dur=Number($("#slotDur").value)||30;
+  const qty=Number($("#slotQty").value)||1;
+  if(!date||!time) return msg($("#slotMsg"),"Informe data e hora",false);
+  const startLocal=new Date(date+"T"+time+":00");
+  // interpret as America/Sao_Paulo roughly via offset - use ISO from local browser
+  const slots=[];
+  for(let i=0;i<qty;i++){
+    const a=new Date(startLocal.getTime()+i*dur*60000);
+    const b=new Date(a.getTime()+dur*60000);
+    slots.push({starts_at:a.toISOString(), ends_at:b.toISOString()});
+  }
+  const body={slots};
+  if(s.profile.role==="admin") body.consultant_id=$("#slotConsultant").value;
+  try{
+    await api("/api/agenda/slots",{method:"POST",body:JSON.stringify(body)});
+    msg($("#slotMsg"), qty+" horário(s) liberado(s)", true);
+    await refreshAgenda();
+  }catch(e){ msg($("#slotMsg"), e.message, false); }
+};
+
+$("#btnFake").onclick=async()=>{
+  const slot_id=$("#fakeSlot").value;
+  const display_name=$("#fakeName").value.trim();
+  if(!slot_id||!display_name) return msg($("#fakeMsg"),"Escolha o slot e o nome",false);
+  try{
+    await api("/api/agenda/book",{method:"POST",body:JSON.stringify({slot_id, is_fake:true, display_name})});
+    msg($("#fakeMsg"),"Fake criado",true);
+    $("#fakeName").value="";
+    await refreshAgenda();
+  }catch(e){ msg($("#fakeMsg"), e.message, false); }
+};
+
+// default date = tomorrow
+const tmr=new Date(Date.now()+864e5);
+$("#slotDate").value=tmr.toISOString().slice(0,10);
+showApp();
+</script>
+</body>
+</html>

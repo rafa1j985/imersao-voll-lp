@@ -344,6 +344,22 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
 .mbar.is-hidden,.mbar.is-wait{transform:translateY(110%);pointer-events:none}
 .mbar .btn{width:100%;padding:15px;border-radius:8px}
 
+
+.admin-login{position:fixed;inset:0;z-index:60;background:rgba(15,19,23,.72);display:grid;place-items:center;padding:20px}
+.admin-login .box{width:min(400px,100%);background:#fff;border-radius:14px;padding:24px;color:var(--ink);display:grid;gap:12px}
+.admin-login h2{font-size:20px;margin:0}
+.admin-login label{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--muted)}
+.admin-login input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.admin-login .err{color:#B91C1C;font-size:13px;min-height:18px}
+.ag-day{margin:18px 0 10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+.ag-slots{display:grid;gap:8px}
+.ag-slot{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:rgba(255,255,255,.05);border:1px solid var(--line-pine);border-radius:10px;padding:14px 16px;color:#fff}
+.ag-slot:hover:not(:disabled){border-color:var(--gold)}
+.ag-slot:disabled{opacity:.55;cursor:default}
+.ag-slot .t{font-weight:700}
+.ag-slot .meta{font-size:13px;color:var(--pine-text)}
+.ag-slot.taken{background:rgba(255,255,255,.03)}
+
 .ed-btn{position:fixed;right:18px;bottom:18px;z-index:40;display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:700;font-size:14px}
 .ed-btn svg{width:16px;height:16px}
 .ed{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);z-index:50;background:#fff;border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(0,0,0,.18);display:flex;flex-direction:column;font-size:14px}
@@ -603,6 +619,19 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
 <div id="agenda" hidden><div id="agendaInner"></div></div>
 <div id="turma1" hidden><div id="turma1Inner"></div></div>
 
+
+<div class="admin-login" id="adminLogin" hidden>
+  <div class="box">
+    <h2>Acesso admin</h2>
+    <p style="margin:0;color:#666;font-size:14px">Entre para editar e publicar os textos da página.</p>
+    <label>E-mail<input id="adminEmail" type="email" autocomplete="username"></label>
+    <label>Senha<input id="adminPass" type="password" autocomplete="current-password"></label>
+    <button type="button" class="btn btn-gold" id="adminLoginBtn">Entrar</button>
+    <div class="err" id="adminLoginErr"></div>
+    <a href="/admin" style="font-size:13px;color:#666">Painel da agenda →</a>
+  </div>
+</div>
+
 <button class="ed-btn" id="edOpen" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Editar textos</button>
 <aside class="ed" id="ed" hidden aria-label="Editor de textos">
   <header>
@@ -616,6 +645,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
   </header>
   <div class="body" id="edBody"></div>
   <footer>
+    <button class="pr" id="edPublish" type="button">Publicar no site</button>
     <button class="pr" id="edCopy" type="button">Copiar conteúdo para o Cursor</button>
     <button id="edReset" type="button">Restaurar original</button>
     <button id="edRestart" type="button">Refazer o quiz</button>
@@ -2521,19 +2551,78 @@ function showEscolha(){
   $("#escBack").onclick=()=>showLP();
   track("escolha_view",{intent});
 }
-function showAgenda(){
+async function showAgenda(){
   showView("agenda");
   const root=$("#agendaInner");
-  const url=CONFIG.AGENDA_URL||"#";
   root.innerHTML=`<div class="brand">VOLL <span>IMERSÃO PRESENCIAL</span></div>
     <div class="q-step">Conversa de 20 minutos</div>
     <h1 class="serif">Escolha o seu horário</h1>
-    <p class="q-help">${esc(S.lead.nome||"Você")}${S.lead.cidade?" · "+esc(S.lead.cidade):""}. A agenda completa entra em breve; por enquanto use o link abaixo.</p>
-    <a class="btn btn-gold" href="${esc(url)}" target="_blank" rel="noopener" id="agGo">Abrir agenda</a>
+    <p class="q-help">${esc(S.lead.nome||"Você")}${S.lead.cidade?" · "+esc(S.lead.cidade):""}. Veja os horários livres e quem já agendou.</p>
+    <div id="agBoard"><p class="q-help">Carregando agenda…</p></div>
     <button type="button" class="q-back" id="agBack" style="margin-top:24px;display:block">← Voltar</button>`;
   $("#agBack").onclick=()=>showEscolha();
-  if(!url || url==="#" || url.indexOf("AGENDA")>=0){
-    $("#agGo").onclick=e=>{ e.preventDefault(); alert("Configure CONFIG.AGENDA_URL com o link da sua agenda (Calendly, Google ou CRM)."); };
+  try{
+    const from=new Date().toISOString();
+    const to=new Date(Date.now()+14*864e5).toISOString();
+    const res=await fetch(`/api/agenda/slots?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    const j=await res.json();
+    if(!j.ok) throw new Error(j.error||"Erro ao carregar");
+    const slots=j.slots||[];
+    if(!slots.length){
+      $("#agBoard").innerHTML=`<p class="q-help">Ainda não há horários abertos. Fale com a gente no WhatsApp.</p>
+        <a class="btn btn-gold" href="https://wa.me/${esc(CONFIG.SDR_WHATSAPP)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`;
+      return;
+    }
+    const byDay={};
+    slots.forEach(s=>{
+      const key=new Date(s.starts_at).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo", weekday:"long", day:"2-digit", month:"long"});
+      (byDay[key]=byDay[key]||[]).push(s);
+    });
+    let html="";
+    Object.keys(byDay).forEach(day=>{
+      html+=`<div class="ag-day">${esc(day)}</div><div class="ag-slots">`;
+      byDay[day].forEach(s=>{
+        const t=new Date(s.starts_at).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
+        if(s.available){
+          html+=`<button type="button" class="ag-slot" data-slot="${esc(s.id)}"><span><div class="t">${esc(t)}</div><div class="meta">${esc(s.consultant_name)}</div></span><span class="meta">Disponível</span></button>`;
+        } else {
+          html+=`<button type="button" class="ag-slot taken" disabled><span><div class="t">${esc(t)}</div><div class="meta">${esc(s.consultant_name)}</div></span><span class="meta">${esc(s.display_name||"Reservado")}</span></button>`;
+        }
+      });
+      html+=`</div>`;
+    });
+    $("#agBoard").innerHTML=html;
+    root.querySelectorAll("[data-slot]").forEach(btn=>{
+      btn.onclick=async()=>{
+        const slot_id=btn.dataset.slot;
+        btn.disabled=true;
+        try{
+          const payload={
+            slot_id,
+            nome:S.lead.nome||"",
+            whatsapp:S.lead.whatsapp||"",
+            cidade:S.lead.cidade||"",
+            quiz_payload:{dores:S.dores,ordem:S.ordem,a:S.a,rota:S.route}
+          };
+          const r=await fetch("/api/agenda/book",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+          const out=await r.json();
+          if(!r.ok||!out.ok) throw new Error(out.error||"Não foi possível agendar");
+          const when=new Date(out.booking.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+          root.innerHTML=`<div class="brand">VOLL <span>IMERSÃO PRESENCIAL</span></div>
+            <div class="q-step">Agendado</div>
+            <h1 class="serif">Horário confirmado</h1>
+            <p class="q-help">${esc(S.lead.nome||"Você")}, sua conversa de 20 minutos ficou em <strong>${esc(when)}</strong>. O time VOLL fala com você no WhatsApp com os detalhes.</p>
+            <button type="button" class="btn btn-gold" id="agDone">Voltar para a página</button>`;
+          $("#agDone").onclick=()=>showLP();
+          track("agenda_booked",{slot_id, starts_at:out.booking.starts_at});
+        }catch(e){
+          alert(String(e.message||e));
+          btn.disabled=false;
+        }
+      };
+    });
+  }catch(e){
+    $("#agBoard").innerHTML=`<p class="q-help">Não deu para carregar a agenda agora. ${esc(String(e.message||e))}</p>`;
   }
 }
 
@@ -3506,21 +3595,72 @@ function applyPreview(){
   S.ordem=ordem; S.dores=[...new Set([...ordem,...S.dores])];
   store.set("imersao_estado",S); renderLP();
 }
-function isAdminMode(){ return location.hash==="#admin"; }
+const ADMIN_SESSION_KEY="imersao_admin_session";
+function getAdminSession(){ try{ return JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY)||"null"); }catch(e){ return null; } }
+function setAdminSession(v){ try{ if(v) localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(v)); else localStorage.removeItem(ADMIN_SESSION_KEY); }catch(e){} }
+function isAdminAuthed(){ const s=getAdminSession(); return !!(s && s.access_token && s.profile && s.profile.role==="admin"); }
+function isAdminMode(){ return location.hash==="#admin" && isAdminAuthed(); }
 function syncAdminMode(){
-  const on=isAdminMode();
-  const ed=$("#ed"), btn=$("#edOpen");
-  if(!on){
+  const want=location.hash==="#admin";
+  const ed=$("#ed"), btn=$("#edOpen"), login=$("#adminLogin");
+  if(!want){
     if(ed) ed.hidden=true;
     if(btn) btn.hidden=true;
+    if(login) login.hidden=true;
     return;
   }
+  if(!isAdminAuthed()){
+    if(ed) ed.hidden=true;
+    if(btn) btn.hidden=true;
+    if(login) login.hidden=false;
+    return;
+  }
+  if(login) login.hidden=true;
   if(btn && (!ed || ed.hidden)) btn.hidden=false;
+}
+async function adminLogin(){
+  const email=($("#adminEmail")&&$("#adminEmail").value||"").trim();
+  const password=($("#adminPass")&&$("#adminPass").value)||"";
+  const err=$("#adminLoginErr"); if(err) err.textContent="";
+  try{
+    const res=await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const j=await res.json();
+    if(!res.ok||!j.ok) throw new Error(j.error||"Falha no login");
+    if(!j.profile || j.profile.role!=="admin") throw new Error("Este usuário não é admin");
+    setAdminSession({access_token:j.access_token, refresh_token:j.refresh_token, user:j.user, profile:j.profile});
+    syncAdminMode();
+  }catch(e){ if(err) err.textContent=String(e.message||e); }
+}
+async function publishContent(){
+  const s=getAdminSession();
+  if(!s||!s.access_token){ flash("Faça login"); return; }
+  try{
+    const res=await fetch("/api/content",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:"Bearer "+s.access_token},body:JSON.stringify({content:C})});
+    const j=await res.json();
+    if(!res.ok||!j.ok) throw new Error(j.error||"Falha ao publicar");
+    store.set("imersao_conteudo",C);
+    flash("Publicado no site");
+  }catch(e){ flash(String(e.message||e)); }
+}
+async function loadPublishedContent(){
+  try{
+    const res=await fetch("/api/content");
+    const j=await res.json();
+    if(j && j.ok && j.content && j.content.dores && j.content.secoes && j.content.botoes){
+      C=j.content;
+      store.set("imersao_conteudo",C);
+      return true;
+    }
+  }catch(e){}
+  return false;
 }
 $("#edOpen").onclick=()=>{
   if(!isAdminMode()) return;
   ensurePreviewProfile(); if($("#lp").hidden) showLP(); syncPreview(); renderEditor(); $("#ed").hidden=false; $("#edOpen").hidden=true;
 };
+if($("#adminLoginBtn")) $("#adminLoginBtn").onclick=()=>adminLogin();
+if($("#adminPass")) $("#adminPass").addEventListener("keydown",e=>{ if(e.key==="Enter") adminLogin(); });
+if($("#edPublish")) $("#edPublish").onclick=()=>publishContent();
 $("#edClose").onclick=()=>{ $("#ed").hidden=true; $("#edOpen").hidden=!isAdminMode(); };
 $("#pvP1").onchange=applyPreview; $("#pvP2").onchange=applyPreview; $("#pvP3").onchange=applyPreview;
 $("#edCopy").onclick=()=>{
@@ -3579,11 +3719,17 @@ function syncPhotosFromOriginal(){
   })(C);
 }
 
-const savedC=store.get("imersao_conteudo"); if(savedC&&savedC.dores&&savedC.secoes&&savedC.secoes.resolve&&savedC.botoes&&savedC.botoes.principal) C=savedC;
-syncPhotosFromOriginal();
-store.set("imersao_conteudo",C);
-const savedS=store.get("imersao_estado"); if(savedS&&Array.isArray(savedS.dores)) S=savedS;
-syncAdminMode();
-if(S.done && (S.ordem.length||S.dores.length)) showLP(); else { if(S.step>10) S.step=-1; renderQuiz(); }
+(async function boot(){
+  const fromServer = await loadPublishedContent();
+  if(!fromServer){
+    const savedC=store.get("imersao_conteudo");
+    if(savedC&&savedC.dores&&savedC.secoes&&savedC.secoes.resolve&&savedC.botoes&&savedC.botoes.principal) C=savedC;
+  }
+  syncPhotosFromOriginal();
+  store.set("imersao_conteudo",C);
+  const savedS=store.get("imersao_estado"); if(savedS&&Array.isArray(savedS.dores)) S=savedS;
+  syncAdminMode();
+  if(S.done && (S.ordem.length||S.dores.length)) showLP(); else { if(S.step>10) S.step=-1; renderQuiz(); }
+})();
 </script>
 </body></html>
